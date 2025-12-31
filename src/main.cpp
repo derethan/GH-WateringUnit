@@ -4,8 +4,8 @@
 #include "PumpController.h"
 
 // ============= PUMP INSTANCES =============
-PumpController waterPump1(RELAY_PIN_1, false); // Normal logic
-PumpController waterPump2(RELAY_PIN_2, false); // Normal logic
+PumpController waterPump1(RELAY_PIN_1, true); // Normal logic
+PumpController waterPump2(RELAY_PIN_2, true); // Normal logic
 
 // Array of pump pointers for static helper methods
 PumpController *pumps[] = {&waterPump1, &waterPump2};
@@ -15,6 +15,7 @@ const uint8_t PUMP_PINS[] = {RELAY_PIN_1, RELAY_PIN_2};
 // ============= GLOBAL VARIABLES =============
 unsigned long lastSerialUpdate = 0;
 unsigned long lastDebugPrint = 0;
+bool menuMode = false; // Flag to control menu mode and debug messages
 
 const unsigned long SERIAL_UPDATE_INTERVAL = 100; // Update status every 100ms
 const unsigned long HYSTERESIS = 1 * 30 * 1000;   // Hysteresis to prevent rapid toggling (ms) -
@@ -70,7 +71,6 @@ void loop()
       {
         processCommand(commandBuffer);
         commandBuffer = "";
-        printMenu();
       }
     }
     else if (c >= 32 && c <= 126)
@@ -95,14 +95,11 @@ void loop()
     {
       // Water level full - turn pump OFF
       waterPump1.off();
-
-      // Optional: Print status
-      Serial.println("Pump 1 OFF - Water level full");
     }
   }
 
-  // Print pump statuses periodically
-  if (millis() - lastDebugPrint >= DEBUG_FREQ)
+  // Print pump statuses periodically (only when not in menu mode)
+  if (!menuMode && millis() - lastDebugPrint >= DEBUG_FREQ)
   {
     PumpController::printAllStatus(pumps, PUMP_PINS, NUM_PUMPS);
     lastDebugPrint = millis();
@@ -125,6 +122,7 @@ void printMenu()
   Serial.println("8 - Custom test (enter: 8,pump#,onMS,offMS,cycles)");
   Serial.println("S - Print pump status");
   Serial.println("H - Print this menu");
+  Serial.println("EXIT - Exit menu mode");
   Serial.print("Enter command: ");
 }
 
@@ -133,6 +131,20 @@ void processCommand(String command)
 {
   command.toUpperCase();
   command.trim();
+
+  // Menu control commands
+  if (command == "MENU")
+  {
+    menuMode = true;
+    printMenu();
+    return;
+  }
+  else if (command == "EXIT")
+  {
+    menuMode = false;
+    Serial.println("\nExiting menu mode. Debug messages re-enabled.\n");
+    return;
+  }
 
   // Single character commands
   if (command == "1")
